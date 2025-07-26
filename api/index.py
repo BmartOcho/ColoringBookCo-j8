@@ -10,6 +10,9 @@ from werkzeug.utils import secure_filename
 app = Flask(__name__)
 CORS(app, origins="*")  # Enable CORS for all origins
 
+def handler(request):
+    return app(request.environ, lambda status, headers: None)
+
 @app.route('/api/process-images', methods=['POST'])
 def process_images():
     try:
