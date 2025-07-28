@@ -108,7 +108,7 @@ class handler(BaseHTTPRequestHandler):
                             'model': 'gpt-image-1',
                             'prompt': selected_prompt,
                             'image': f'data:image/{image_format};base64,{base64_image}',
-                            'size': '1024x1024',
+                            'size': '1024x1536',
                             'quality': 'standard',
                             'response_format': 'url',
                             'n': 1
