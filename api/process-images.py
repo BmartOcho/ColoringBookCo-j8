@@ -128,7 +128,17 @@ class handler(BaseHTTPRequestHandler):
                             # Download the generated image
                             img_response = requests.get(generated_image_url, timeout=30)
                             if img_response.status_code == 200:
-                                filename = f'{prompt_field}_{image_field.filename or f"image_{i+1}"}_{i+1}.png'
+                                # Clean filename
+                                original_filename = image_field.filename or f"image_{i+1}"
+                                # Remove any path separators and ensure safe filename
+                                safe_filename = "".join(c for c in original_filename if c.isalnum() or c in "._-")
+                                if not safe_filename:
+                                    safe_filename = f"image_{i+1}"
+                                
+                                # Remove extension and add our own
+                                name_without_ext = safe_filename.rsplit('.', 1)[0] if '.' in safe_filename else safe_filename
+                                filename = f'{prompt_field}_{name_without_ext}_{i+1}.png'
+                                
                                 processed_images.append({
                                     'filename': filename,
                                     'data': img_response.content
@@ -145,20 +155,25 @@ class handler(BaseHTTPRequestHandler):
                 self.wfile.write(json.dumps(error_response).encode())
                 return
 
-            # Create zip file in memory
+            # Create zip file in memory with proper compression
             zip_buffer = io.BytesIO()
-            with zipfile.ZipFile(zip_buffer, 'w', zipfile.ZIP_DEFLATED) as zip_file:
+            with zipfile.ZipFile(zip_buffer, 'w', zipfile.ZIP_DEFLATED, compresslevel=6) as zip_file:
                 for img in processed_images:
-                    zip_file.writestr(img['filename'], img['data'])
+                    # Add file with proper info
+                    zip_info = zipfile.ZipInfo(img['filename'])
+                    zip_info.compress_type = zipfile.ZIP_DEFLATED
+                    zip_file.writestr(zip_info, img['data'])
             
             zip_buffer.seek(0)
             zip_data = zip_buffer.getvalue()
 
-            # Return the zip file
-            self.send_header('Content-type', 'application/zip')
+            # Return the zip file with proper headers
+            self.send_header('Content-Type', 'application/zip')
             self.send_header('Content-Disposition', f'attachment; filename="ColoringBook_{prompt_field.replace("-", "_")}.zip"')
             self.send_header('Content-Length', str(len(zip_data)))
+            self.send_header('Cache-Control', 'no-cache')
             self.end_headers()
+            
             self.wfile.write(zip_data)
 
         except Exception as e:
